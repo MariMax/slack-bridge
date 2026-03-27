@@ -333,6 +333,9 @@
   <a href="#use-cases" title="Use Cases"></a>
   <a href="#reactions" title="Reactions"></a>
   <a href="#setup" title="Setup"></a>
+  <a href="#demo" title="Demo"></a>
+  <a href="#qa" title="QA"></a>
+  <a href="#how-built" title="How It Was Built"></a>
 </nav>
 
 <!-- SLIDE 1: Title -->
@@ -715,6 +718,137 @@
       <p style="color: var(--muted); font-size: 1.1rem;">
         Built with Claude Code · Powered by AWS Bedrock · Open for contributions
       </p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 11: Demo -->
+<section class="slide" id="demo">
+  <div class="content">
+    <span class="number">10</span>
+    <div class="badge badge-green">Live Demo</div>
+    <h2>See It In Action</h2>
+    <div class="divider"></div>
+
+    <p class="subtitle">Three real scenarios, running live.</p>
+
+    <div class="cards">
+      <div class="card" style="border-top: 3px solid var(--green);">
+        <div class="icon">🔗</div>
+        <h3>Demo 1 — PR Auto-Review</h3>
+        <p>Post a GitHub PR link into a channel. Watch the bot react with 👀, analyze the diff, cross-check the Jira ticket, and post a full review in the thread — approve or request changes.</p>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--orange);">
+        <div class="icon">💬</div>
+        <h3>Demo 2 — DM Idea Capture</h3>
+        <p>Send the bot a product idea via DM. It classifies the intent, creates a Jira Story with <code>(IDEA)</code> prefix, and confirms with a ticket link — no form filling, no copy-paste.</p>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--purple);">
+        <div class="icon">🏷️</div>
+        <h3>Demo 3 — Thread to Ticket</h3>
+        <p>Grab any existing Slack discussion. @mention the bot: "create a ticket for this". It reads the thread, captures attachments, and opens a properly described Jira issue in seconds.</p>
+      </div>
+    </div>
+
+    <div class="scenario" style="border-left-color: var(--green); margin-top: 32px;">
+      <div class="scenario-title">What to Watch For</div>
+      <p>Notice the emoji reactions as status signals. Notice how the bot picks up thread context without you repeating yourself. Notice it never needs a form — just natural language.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 12: QA -->
+<section class="slide" id="qa">
+  <div class="content">
+    <span class="number">11</span>
+    <div class="badge badge-red">Q&A</div>
+    <h2>Questions?</h2>
+    <div class="divider"></div>
+
+    <p class="subtitle">Common things people ask:</p>
+
+    <div class="cards" style="grid-template-columns: 1fr 1fr;">
+      <div class="scenario">
+        <div class="scenario-title">How accurate are the reviews?</div>
+        <p>Claude reads the actual diff and Jira ticket requirements. It catches logic issues, missing edge cases, and spec mismatches — but it's a second opinion, not a replacement for human review.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">Does it touch our codebase?</div>
+        <p>Only when explicitly asked ("implement it" / "fix it"). For PR reviews it's read-only — it fetches the diff via GitHub API, never clones or writes to your repo.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">What if it makes a mistake?</div>
+        <p>All Jira tickets created by the bot have clear labels. All PRs opened by the bot are tagged. Human approval is always the final gate — the bot assists, it doesn't merge.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">How is it deployed?</div>
+        <p>Docker container, Socket Mode (no public URL needed). Runs on any machine with Docker. All credentials in <code>.env</code>. Logs to stdout. One command to start: <code>./claude slack</code></p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">Can we add more integrations?</div>
+        <p>Yes — the skills system is modular. Figma, Confluence, GitHub, Jira are already built. Adding a new integration is writing a skill file and registering it.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">What does it cost?</div>
+        <p>AWS Bedrock pricing — you pay per token. A typical PR review is ~2k–8k tokens. Jira ticket creation is ~1k–3k. For a team of 10 engineers, expect single-digit dollars per day.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 13: How It Was Built -->
+<section class="slide" id="how-built">
+  <div class="content">
+    <span class="number">12</span>
+    <div class="badge badge-purple">Origin Story</div>
+    <h2>How It Was Built</h2>
+    <div class="divider"></div>
+
+    <p class="subtitle">No code written. Just ideas and conversation.</p>
+
+    <div class="scenario" style="border-left-color: var(--purple); margin-bottom: 24px;">
+      <div class="scenario-title">The Problem</div>
+      <p>We had a growing punch list — bugs spotted in reviews, product ideas floating in Slack, tasks discussed in threads — none of it making it into Jira. Things were getting lost. The backlog was falling behind real conversations.</p>
+    </div>
+
+    <div class="flow" style="margin: 32px 0;">
+      <div class="flow-step">😤 Punch list chaos</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">💬 Chat with Claude</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🏗️ Architecture ideas</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">⚡ Working bot</div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3>The Process</h3>
+        <ul>
+          <li>Described the problem in plain language to Claude Code</li>
+          <li>Discussed what integrations we had (Slack, Jira, GitHub)</li>
+          <li>Asked "what's the simplest architecture for this?"</li>
+          <li>Iterated on routing logic through conversation</li>
+          <li>Claude wrote all the code — I reviewed intent and direction</li>
+          <li>No IDE, no local dev setup, no debugging sessions</li>
+        </ul>
+      </div>
+      <div>
+        <h3>What I Actually Did</h3>
+        <ul>
+          <li>Described the business problem clearly</li>
+          <li>Defined what "done" looks like for each feature</li>
+          <li>Asked the right questions about edge cases</li>
+          <li>Tested the running bot and gave feedback</li>
+          <li>Decided what was worth building vs skipping</li>
+          <li>That's it. Zero lines of code written by hand.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="scenario" style="border-left-color: var(--accent); margin-top: 32px;">
+      <div class="scenario-title">The Takeaway</div>
+      <p>The value wasn't in writing code faster. It was in being able to go from "this workflow is broken" to "working tool in production" in a single conversation. AI as a thought partner that also happens to implement the ideas.</p>
     </div>
   </div>
 </section>
