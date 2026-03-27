@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Agent — Slack Bridge</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a2e;
+      --accent: #e94560;
+      --accent2: #0f3460;
+      --text: #eee;
+      --muted: #888;
+      --green: #16c784;
+      --blue: #3b82f6;
+      --orange: #f59e0b;
+      --purple: #8b5cf6;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      scroll-behavior: smooth;
+    }
+
+    .slide {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(233,69,96,0.08) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .slide:nth-child(even)::before {
+      background: radial-gradient(ellipse at 50% 100%, rgba(15,52,96,0.15) 0%, transparent 60%);
+    }
+
+    .content {
+      max-width: 1000px;
+      width: 100%;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, #e94560, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.2;
+    }
+
+    h2 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+
+    h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-size: 1.4rem;
+      color: var(--muted);
+      margin-bottom: 40px;
+      max-width: 700px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .badge-red { background: rgba(233,69,96,0.2); color: var(--accent); }
+    .badge-blue { background: rgba(59,130,246,0.2); color: var(--blue); }
+    .badge-green { background: rgba(22,199,132,0.2); color: var(--green); }
+    .badge-orange { background: rgba(245,158,11,0.2); color: var(--orange); }
+    .badge-purple { background: rgba(139,92,246,0.2); color: var(--purple); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 32px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 28px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(233,69,96,0.3);
+    }
+
+    .card .icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 24px 0;
+    }
+
+    .flow-step {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .flow-arrow {
+      color: var(--accent);
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+
+    .scenario {
+      background: var(--card);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 12px 12px 0;
+      padding: 24px 28px;
+      margin: 16px 0;
+    }
+
+    .scenario-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .scenario p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .scenario code {
+      background: rgba(233,69,96,0.15);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .reactions {
+      display: flex;
+      gap: 16px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .reaction {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.9rem;
+    }
+
+    .reaction .emoji { font-size: 1.3rem; }
+
+    .image-placeholder {
+      background: linear-gradient(135deg, var(--card), rgba(233,69,96,0.1));
+      border: 2px dashed rgba(233,69,96,0.3);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      margin: 24px 0;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .image-placeholder img {
+      max-width: 100%;
+      max-height: 400px;
+      border-radius: 12px;
+    }
+
+    .image-placeholder .prompt {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 12px;
+      font-style: italic;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .two-col { grid-template-columns: 1fr; }
+      h1 { font-size: 2.4rem; }
+      h2 { font-size: 1.6rem; }
+      .slide { padding: 40px 20px; }
+      .flow { flex-direction: column; }
+    }
+
+    .divider {
+      width: 60px;
+      height: 4px;
+      background: var(--accent);
+      border-radius: 2px;
+      margin: 24px 0;
+    }
+
+    .tag-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .tag {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.06);
+      color: var(--muted);
+    }
+
+    .nav {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .nav a {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: block;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .nav a:hover, .nav a.active {
+      background: var(--accent);
+      transform: scale(1.3);
+    }
+
+    .number {
+      font-size: 5rem;
+      font-weight: 900;
+      color: rgba(233,69,96,0.15);
+      position: absolute;
+      top: 40px;
+      right: 60px;
+    }
+
+    ul { list-style: none; padding: 0; }
+    ul li { padding: 6px 0; color: var(--muted); }
+    ul li::before { content: '→ '; color: var(--accent); font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="#title" title="Title"></a>
+  <a href="#overview" title="Overview"></a>
+  <a href="#architecture" title="Architecture"></a>
+  <a href="#pr-review" title="PR Review"></a>
+  <a href="#pr-flow" title="PR Flow Detail"></a>
+  <a href="#dm-assistant" title="DM Assistant"></a>
+  <a href="#mentions" title="@Mentions"></a>
+  <a href="#use-cases" title="Use Cases"></a>
+  <a href="#reactions" title="Reactions"></a>
+  <a href="#setup" title="Setup"></a>
+</nav>
+
+<!-- SLIDE 1: Title -->
+<section class="slide" id="title">
+  <div class="content" style="text-align: center;">
+    <div class="badge badge-red">Internal Tool</div>
+    <h1>Claude Agent<br>Slack Bridge</h1>
+    <p class="subtitle" style="margin: 20px auto;">
+      An AI-powered Slack bot that auto-reviews PRs, tracks ideas as Jira tickets, 
+      answers questions, and creates tickets from thread conversations.
+    </p>
+    <div class="image-placeholder">
+      <div style="font-size: 4rem;">🤖 💬 🔗</div>
+      <p class="prompt">IMAGE SLOT: hero illustration — a friendly robot sitting at a desk with multiple Slack chat windows floating around it, reviewing code on screens, dark purple/red tech aesthetic</p>
+    </div>
+    <div class="tag-list" style="justify-content: center;">
+      <span class="tag">Slack Bot</span>
+      <span class="tag">Claude Code</span>
+      <span class="tag">PR Reviews</span>
+      <span class="tag">Jira Integration</span>
+      <span class="tag">Docker</span>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 2: Overview -->
+<section class="slide" id="overview">
+  <div class="content">
+    <span class="number">01</span>
+    <div class="badge badge-blue">What It Does</div>
+    <h2>Three Modes of Operation</h2>
+    <div class="divider"></div>
+    
+    <div class="cards">
+      <div class="card">
+        <div class="icon">👀</div>
+        <h3>PR Watcher</h3>
+        <p>Monitors every channel it's invited to. When someone posts a GitHub PR link, it automatically reviews the code, cross-checks with Jira tickets, and gives an approve/request-changes verdict.</p>
+      </div>
+      <div class="card">
+        <div class="icon">💬</div>
+        <h3>DM Assistant</h3>
+        <p>Personal AI assistant via direct messages. Routes your intent — ideas become Jira tickets, tasks become tracked work items, questions get answered with full context.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🏷️</div>
+        <h3>@Mention Handler</h3>
+        <p>Tag the bot in any thread to create a Jira ticket from the conversation context, update existing tickets, or even trigger code implementation.</p>
+      </div>
+    </div>
+
+    <div class="image-placeholder">
+      <p class="prompt">IMAGE SLOT: three floating holographic panels in dark space — left panel shows code diff with green/red lines, center panel shows a chat bubble with lightbulb, right panel shows a ticket/card with checkmarks. Glowing connections between them. Futuristic UI style.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 3: Architecture -->
+<section class="slide" id="architecture">
+  <div class="content">
+    <span class="number">02</span>
+    <div class="badge badge-purple">Architecture</div>
+    <h2>How It's Built</h2>
+    <div class="divider"></div>
+
+    <div class="flow">
+      <div class="flow-step">📨 Slack Event</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🔀 Router</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🧠 Claude Code</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">📤 Slack Response</div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3>Stack</h3>
+        <ul>
+          <li>Node.js + Slack Bolt SDK (Socket Mode)</li>
+          <li>Claude Code CLI via Docker</li>
+          <li>Skills: GitHub, Atlassian, Figma</li>
+          <li>Memory system with action logs + learnings</li>
+          <li>AWS Bedrock for Claude API</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Message Routing</h3>
+        <ul>
+          <li><strong>DM</strong> → Intent Router → (Task / Idea / Implement)</li>
+          <li><strong>Channel msg with PR link</strong> → PR Handler</li>
+          <li><strong>@mention</strong> → Mention Handler → Jira / Update / Implement</li>
+          <li><strong>Thread reply</strong> → Context-aware re-routing</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="image-placeholder">
+      <p class="prompt">IMAGE SLOT: architectural diagram as a glowing neon blueprint — a central brain node connected to four satellite nodes labeled "Slack", "GitHub", "Jira", "Docker". Data streams flowing between them as particle trails. Dark background with cyan/magenta glow lines.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 4: PR Review -->
+<section class="slide" id="pr-review">
+  <div class="content">
+    <span class="number">03</span>
+    <div class="badge badge-green">Core Feature</div>
+    <h2>Automatic PR Reviews</h2>
+    <div class="divider"></div>
+
+    <p class="subtitle">Drop a PR link in any channel. The bot handles the rest.</p>
+
+    <div class="flow">
+      <div class="flow-step">🔗 PR Link Posted</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">👀 Eyes Reaction</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">📋 Check Status</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🔍 Review Code</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">⚖️ Decision</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">👍 or ⚠️</div>
+    </div>
+
+    <div class="two-col">
+      <div class="scenario">
+        <div class="scenario-title">Standard Review</div>
+        <p>Posts PR link → bot reads the diff via GitHub skill → writes comprehensive code review in thread → makes approve/request-changes decision</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">Jira Cross-Check</div>
+        <p>If the PR description contains a ticket number (e.g. <code>ABC-123</code>), the bot fetches the Jira ticket first and verifies the code actually implements the requirements</p>
+      </div>
+    </div>
+
+    <div class="image-placeholder">
+      <p class="prompt">IMAGE SLOT: a robot with magnifying glass carefully examining lines of code on a floating transparent screen. Green checkmarks and red X marks floating around. Code symbols and brackets visible. Dark tech environment with soft purple ambient lighting.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 5: PR Flow Detail -->
+<section class="slide" id="pr-flow">
+  <div class="content">
+    <span class="number">04</span>
+    <div class="badge badge-green">Deep Dive</div>
+    <h2>PR Review — Smart Features</h2>
+    <div class="divider"></div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="icon">🔄</div>
+        <h3>Re-Reviews</h3>
+        <p>Reply in the PR thread asking for a re-review. The bot detects intent, cleans up old reactions, and runs a fresh review with full thread context.</p>
+      </div>
+      <div class="card">
+        <div class="icon">❓</div>
+        <h3>Thread Q&A</h3>
+        <p>Ask questions about the PR in the review thread. The bot uses thread history + PR diff to answer contextually — no need to repeat yourself.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔀</div>
+        <h3>Merged Detection</h3>
+        <p>Already merged? The bot adds a 🔀 merge reaction and skips the review. No wasted compute or noisy threads.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🤖</div>
+        <h3>Bot Message Support</h3>
+        <p>Works with bot-posted PR links too (e.g., CI/CD bots). Detects its own thread replies to prevent infinite review loops.</p>
+      </div>
+    </div>
+
+    <div class="scenario" style="border-left-color: var(--blue);">
+      <div class="scenario-title">Completion Guarantee</div>
+      <p>Every review requires a <code>---REVIEW_COMPLETE---</code> marker. If missing, the bot retries automatically. Failed reviews get a ⚠️ with "please review manually" fallback.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 6: DM Assistant -->
+<section class="slide" id="dm-assistant">
+  <div class="content">
+    <span class="number">05</span>
+    <div class="badge badge-orange">Personal Assistant</div>
+    <h2>DM — Intent-Based Routing</h2>
+    <div class="divider"></div>
+
+    <p class="subtitle">Message the bot directly. It classifies your intent and routes accordingly.</p>
+
+    <div class="cards">
+      <div class="card" style="border-top: 3px solid var(--orange);">
+        <div class="icon">💡</div>
+        <h3>IDEA</h3>
+        <p>Say something like "What if we added dark mode?" — bot creates a Jira Story in RTL project with <code>(IDEA)</code> prefix. Tracked, not lost.</p>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--blue);">
+        <div class="icon">📋</div>
+        <h3>TASK</h3>
+        <p>"Update the CI pipeline to cache node_modules" — bot creates a Jira Task with <code>(TASK)</code> prefix, assigned to you.</p>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--green);">
+        <div class="icon">⚡</div>
+        <h3>IMPLEMENT</h3>
+        <p>"How do I configure CORS in Express?" — bot answers directly, no ticket. Quick questions get quick answers.</p>
+      </div>
+    </div>
+
+    <div class="scenario" style="border-left-color: var(--orange);">
+      <div class="scenario-title">Thread Conversations</div>
+      <p>Reply in a thread to continue the conversation. The bot fetches full thread history and maintains context — no intent routing needed for follow-ups.</p>
+    </div>
+
+    <div class="image-placeholder">
+      <p class="prompt">IMAGE SLOT: split screen showing three paths — left: a lightbulb transforming into a floating ticket card, center: a checklist materializing from a chat bubble, right: a lightning bolt with instant answer text. Neon orange/blue/green color coding. Dark minimal background.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 7: @Mention Handler -->
+<section class="slide" id="mentions">
+  <div class="content">
+    <span class="number">06</span>
+    <div class="badge badge-purple">Channel Power</div>
+    <h2>@Mention — Thread to Ticket Pipeline</h2>
+    <div class="divider"></div>
+
+    <p class="subtitle">Turn any Slack conversation into a tracked Jira ticket with one @mention.</p>
+
+    <div class="flow">
+      <div class="flow-step">💬 Thread Discussion</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🏷️ @bot create ticket</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">📎 Files Attached</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">🔗 Slack Link in Ticket</div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3>What It Captures</h3>
+        <ul>
+          <li>Full thread conversation as ticket description</li>
+          <li>Attached files (images, docs) → Jira attachments</li>
+          <li>Permalink back to original Slack thread</li>
+          <li>Proper issue type (Story, Bug, Task, Spike)</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Follow-Up Actions</h3>
+        <ul>
+          <li>@mention again → update the existing ticket</li>
+          <li>"implement it" → bot reads ticket, writes code, opens PR</li>
+          <li>"fix it" → same implementation flow</li>
+          <li>All actions tracked via thread context</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="image-placeholder">
+      <p class="prompt">IMAGE SLOT: a hand pressing an @ symbol button, causing a Slack thread to fold into an origami-style ticket/card that floats toward a Jira board. Files and images trailing behind like a comet tail. Purple/magenta glow, dark background.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 8: Use Cases -->
+<section class="slide" id="use-cases">
+  <div class="content">
+    <span class="number">07</span>
+    <div class="badge badge-red">Real World</div>
+    <h2>Typical Use Cases</h2>
+    <div class="divider"></div>
+
+    <div class="cards" style="grid-template-columns: 1fr 1fr;">
+      <div class="scenario">
+        <div class="scenario-title">🏃 Sprint Planning</div>
+        <p>Team discusses a feature in Slack. Someone @mentions the bot: "create a spike for this". Bot reads the entire thread, creates a properly described Jira Spike with context and attachments.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">🐛 Bug Triage</div>
+        <p>QA posts a bug with screenshots in a channel. @mention bot: "log a bug for this". Bot creates the ticket with screenshots auto-attached, severity inferred from discussion.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">📝 Quick PR Feedback</div>
+        <p>Engineer posts a PR at 11pm. By morning, the bot has already reviewed the diff, cross-checked with the Jira ticket, and left detailed feedback in the thread — with approve/changes decision.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">💭 Idea Capture</div>
+        <p>Random thought in DMs: "We should cache API responses client-side". Bot creates a Jira Story tagged (IDEA) so it doesn't get lost in the Slack void.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">🔧 Quick Implementation</div>
+        <p>After ticket is created, reply "@bot implement it". Bot reads the ticket, finds relevant code, makes the fix, runs tests, and opens a PR — all from a Slack thread.</p>
+      </div>
+      <div class="scenario">
+        <div class="scenario-title">❓ PR Deep Dive</div>
+        <p>"Why did you flag this function?" — ask follow-up questions in the review thread. The bot re-reads the PR diff with your question context and gives a targeted explanation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 9: Reactions -->
+<section class="slide" id="reactions">
+  <div class="content">
+    <span class="number">08</span>
+    <div class="badge badge-blue">Visual Feedback</div>
+    <h2>Reaction Language</h2>
+    <div class="divider"></div>
+
+    <p class="subtitle">The bot communicates PR status through emoji reactions — scannable at a glance.</p>
+
+    <div class="reactions" style="flex-direction: column; gap: 20px;">
+      <div class="reaction" style="padding: 16px 24px;">
+        <span class="emoji">👀</span>
+        <div>
+          <strong>Eyes</strong> — Processing. Bot is actively reviewing the PR.
+        </div>
+      </div>
+      <div class="reaction" style="padding: 16px 24px;">
+        <span class="emoji">👍</span>
+        <div>
+          <strong>Thumbs Up</strong> — Approved. Code looks good, recommend merging.
+        </div>
+      </div>
+      <div class="reaction" style="padding: 16px 24px;">
+        <span class="emoji">⚠️</span>
+        <div>
+          <strong>Warning</strong> — Changes Requested. Issues found that should be addressed before merge.
+        </div>
+      </div>
+      <div class="reaction" style="padding: 16px 24px;">
+        <span class="emoji">🔀</span>
+        <div>
+          <strong>Merge</strong> — Already Merged. PR was merged before review started; no action needed.
+        </div>
+      </div>
+    </div>
+
+    <div class="scenario" style="border-left-color: var(--blue); margin-top: 32px;">
+      <div class="scenario-title">Re-Review Cleanup</div>
+      <p>When a re-review is triggered, the bot removes all previous reactions first, then adds fresh ones based on the new review. No stale signals.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 10: Setup -->
+<section class="slide" id="setup">
+  <div class="content" style="text-align: center;">
+    <span class="number">09</span>
+    <div class="badge badge-green">Get Started</div>
+    <h2>Setup in 3 Steps</h2>
+    <div class="divider" style="margin: 24px auto;"></div>
+
+    <div class="cards" style="text-align: left;">
+      <div class="card" style="border-top: 3px solid var(--green);">
+        <div class="icon">1️⃣</div>
+        <h3>Configure</h3>
+        <p>Create <code>.env</code> with Slack tokens, GitHub token, Jira credentials. Or run <code>./claude</code> and ask "help me bootstrap".</p>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--blue);">
+        <div class="icon">2️⃣</div>
+        <h3>Launch</h3>
+        <p><code>./claude slack</code> — starts the Docker container with Slack Bridge in Socket Mode. No webhooks, no public URLs needed.</p>
+      </div>
+      <div class="card" style="border-top: 3px solid var(--purple);">
+        <div class="icon">3️⃣</div>
+        <h3>Invite</h3>
+        <p>Add the bot to your channels with <code>/invite @BotName</code>. It starts watching for PR links and @mentions immediately.</p>
+      </div>
+    </div>
+
+    <div class="image-placeholder" style="margin-top: 40px;">
+      <p class="prompt">IMAGE SLOT: a rocket launching from a laptop screen, trailing code symbols and Slack/GitHub/Jira logos. Clean launch pad aesthetic, dark background with green accent glow suggesting "go" / "ready".</p>
+    </div>
+
+    <div style="margin-top: 40px;">
+      <p style="color: var(--muted); font-size: 1.1rem;">
+        Built with Claude Code · Powered by AWS Bedrock · Open for contributions
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Highlight active nav dot on scroll
+  const sections = document.querySelectorAll('.slide');
+  const navLinks = document.querySelectorAll('.nav a');
+  
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        const activeLink = document.querySelector(`.nav a[href="#${entry.target.id}"]`);
+        if (activeLink) activeLink.classList.add('active');
+      }
+    });
+  }, { threshold: 0.5 });
+  
+  sections.forEach(section => observer.observe(section));
+</script>
+
+</body>
+</html>
